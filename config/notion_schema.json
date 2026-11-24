@@ -1,0 +1,49 @@
+{
+  "properties": {
+    "start_date": { "name": "전형 시작일", "type": "date" },
+    "updated_at": { "name": "업데이트", "type": "date" },
+    "next_deadline": { "name": "다음 일정", "type": "date" },
+    "company": { "name": "Name", "type": "title" },
+    "status": { "name": "상태", "type": "select" },
+    "final_stage": { "name": "최종전형", "type": "select" },
+    "role": { "name": "직무", "type": "select" }
+  },
+  "allowed_statuses": [
+    "진행중",
+    "합격",
+    "불합격",
+    "종료",
+    "메모"
+  ],
+  "terminal_statuses": [
+    "합격",
+    "불합격",
+    "종료"
+  ],
+  "outcome_to_status": {
+    "IN_PROGRESS": "진행중",
+    "PASS": "합격",
+    "FAIL": "불합격",
+    "CLOSED": "종료"
+  },
+  "allowed_final_stages": [
+    "커피챗",
+    "서류",
+    "스크리닝",
+    "과제/테스트",
+    "1차면접",
+    "2차면접",
+    "처우협의"
+  ],
+  "stage_order": {
+    "커피챗": 10,
+    "서류": 20,
+    "스크리닝": 30,
+    "과제/테스트": 40,
+    "코테/과제": 40,
+    "1차면접": 50,
+    "2차면접": 60,
+    "처우협의": 70
+  },
+  "known_roles": []
+}

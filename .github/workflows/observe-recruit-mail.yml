@@ -1,0 +1,98 @@
+name: Observe Recruit Mail
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (classify only; skip Notion, Slack, and state commit)"
+        required: false
+        default: false
+        type: boolean
+      since_days:
+        description: "Lookback days for unread IMAP search"
+        required: false
+        default: "7"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: recruit-mail-observer
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    if: github.event.repository.private == true || vars.ALLOW_PUBLIC_OBSERVER == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: "0.11.7"
+          enable-cache: true
+
+      - name: Install project environment
+        run: uv sync --frozen --no-dev
+
+      - name: Prepare state branch worktree
+        run: |
+          mkdir -p .state-worktree
+          if git ls-remote --exit-code --heads origin state >/dev/null 2>&1; then
+            git fetch origin state:refs/remotes/origin/state
+            git worktree add -B state .state-worktree origin/state
+          else
+            git worktree add --orphan -b state .state-worktree
+          fi
+
+      - name: Run recruit-mail-observer
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          MAIL_PROVIDER: ${{ vars.MAIL_PROVIDER || 'kakao' }}
+          MAIL_EMAIL: ${{ secrets.MAIL_EMAIL }}
+          MAIL_APP_PASSWORD: ${{ secrets.MAIL_APP_PASSWORD }}
+          MAIL_IMAP_HOST: ${{ vars.MAIL_IMAP_HOST }}
+          MAIL_IMAP_PORT: ${{ vars.MAIL_IMAP_PORT }}
+          MAIL_IMAP_MAILBOX: ${{ vars.MAIL_IMAP_MAILBOX }}
+          KAKAO_EMAIL: ${{ secrets.KAKAO_EMAIL }}
+          KAKAO_APP_PASSWORD: ${{ secrets.KAKAO_APP_PASSWORD }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'none' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          GEMINI_THINKING_LEVEL: ${{ vars.GEMINI_THINKING_LEVEL || 'low' }}
+          LOOKBACK_DAYS: ${{ inputs.since_days || vars.LOOKBACK_DAYS || '7' }}
+          MIN_CONFIDENCE: ${{ vars.MIN_CONFIDENCE || '0.65' }}
+          MATCH_BY_ROLE: ${{ vars.MATCH_BY_ROLE || 'false' }}
+        run: |
+          args=(--state-file .state-worktree/processed_messages.json)
+          if [ "${DRY_RUN:-false}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          uv run --locked --no-dev recruit-mail-observer "${args[@]}"
+
+      - name: Persist state to state branch
+        if: always() && inputs.dry_run != true
+        run: |
+          cd .state-worktree
+          if [ ! -f processed_messages.json ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add processed_messages.json
+          if git diff --cached --quiet; then
+            echo "No state changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(state): update processed message hashes"
+          git push origin HEAD:refs/heads/state
