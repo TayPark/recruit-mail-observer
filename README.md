@@ -4,6 +4,11 @@ Computer Use 없이 **표준 IMAP(Kakao · Gmail · Naver · Custom)**으로 읽
 
 ![recruit-mail-observer overview](docs/demo-overview.jpg)
 
+## 왜 만들었는가
+
+- **그리팅(Greeting)·나인하이어(Ninehire)** 같은 기업용 ATS에서 카카오톡 알림이 오지 않거나, **기업 채용 홈페이지에서 직접 지원**한 경우에는 전형 안내가 **이메일로만** 도착합니다.
+- 광고·뉴스레터·일반 메일이 뒤섞인 받은편지함이나 '메일 알리미'를 매번 들어가 확인하는 피로를 없애기 위해, **미열람 메일 중 실제 채용 프로세스 메일만 선별**해 Slack 알림과 Notion 트래커로 자동 정리합니다.
+
 ## 주요 특징
 
 - **읽지 않음 상태 보존 (`BODY.PEEK[]`) + TLS 검증**: 서버 인증서와 호스트명을 검증(`ssl.create_default_context()`)하며, 스크립트가 메일을 읽어도 미열람 상태가 유지됩니다.
